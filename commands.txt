@@ -1,0 +1,177 @@
+    1  pwd
+    2  clear
+    3  sudo yum -y install docker
+    4  sudo service docker start
+    5  sudo service docker status
+    6  sudo chkconfig docker on
+    7  clear
+    8  sudo usermod -a -G docker ec2-user
+    9  clear
+   10  id -a
+   11  docker info
+   12  clear
+   13  docker pull httpd:2.4
+   14  docker images
+   15  docker inspect httpd
+   16  docker inspect
+   17  docker inspect httpd:2.4
+   18  clear
+   19  docker images
+   20  docker rmi lHello Nicolas TANGUY,
+   21  docker rmi lambci/lambda:python2.7
+   22  clear
+   23  docker rmi lambci/lambda:nodejs8.10
+   24  docker images
+   25  docker rmi lambci/lambda:python3.6 lambci/lambda:nodejs4.3 lambci/lambda:nodejs6.10
+   26  clear
+   27  docker run -d --name testapache httpd:2.4
+   28  docker ps
+   29  docker stop testapache
+   30  docker ps
+   31  docker start testapache
+   32  docker ps
+   33  docker exec -it testapache /bin/bash
+   34  docker stop testapache
+   35  docker rm testapache
+   36  clear
+   37  git clone https://github.com/sandilyasd/docker-training.git
+   38  clear
+   39  pwd
+   40  docker build -t sandilyasd/myapache:0.0.1 docker-training/frontend/
+   41  docker images
+   42  docker run -d --name testapache -p 8080:80 sandilyasd/myapache:0.0.1
+   43  docker ps
+   44  curl http://localhost:8080/
+   45  clear
+   46  docker logs
+   47  docker logs testapache
+   48  docker
+   49  docker ps
+   50  docker images
+   51  docker rm testapache
+   52  docker run -d --name testapache -p 9000:80 -v testapache_var_log:/var/log -v /home/ec2-user:/home/ec2-user sandilyasd/myapache
+   53  docker run -d --name testapache -p 9000:80 -v testapache_var_log:/var/log -v /home/ec2-user:/home/ec2-user sandilyasd/myapache:0.0.1
+   54  docker ps
+   55  docker stop testapache
+   56  docker run -d --name testapache -p 8080:80 -v testapache_var_log:/var/log -v /home/ec2-user:/home/ec2-user sandilyasd/myapache:0.0.1
+   57  docker rm testapache
+   58  docker run -d --name testapache -p 8080:80 -v testapache_var_log:/var/log -v /home/ec2-user:/home/ec2-user sandilyasd/myapache:0.0.1
+   59  docker volumes
+   60  docker inspect testapache
+   61  docker exec -it testapache /bin/bash
+   62  docker inspect testapache_var_log
+   63  sudo ll /var/lib/docker/volumes/testapache_var_log/_data
+   64  sudo ls -ltr /var/lib/docker/volumes/testapache_var_log/_data
+   65  git clone https://github.com/mohanraz81/awslogs
+   66  mv awslogs/ docker-training/
+   67  cd docker-training/
+   68  cd awslogs/
+   69  ll
+   70  cat Dockerfile 
+   71  clear
+   72  cd ../..
+   73  rm -rf ~/.aws/
+   74  aws s3 ls
+   75  rm -rf ~/.aws/
+   76  aws s3 ls
+   77  docker build -t sandilyasd/awslogagent:0.0.1
+   78  docker build -t sandilyasd/awslogagent:0.0.1 docker-training/awslogs/Dockerfile 
+   79  docker build -t sandilyasd/awslogagent:0.0.1 docker-training/awslogs/
+   80  docker images
+   81  docker run -d --name awslogagent -v testapache_var_log:/mnt/log:ro sandilyasd/awslogagent:0.0.1 
+   82  docker ps
+   83  docker stop testapache aws logs; docker rm testapache awslogs;
+   84  docker stop testapache awslogagent; docker rm testapache awslogagent;
+   85  docker volume ls
+   86  docker rm testapache_var_log
+   87  docker volume rm testapache_var_log
+   88  docker network ls
+   89  docker network create --driver=bridge --subnet 10.1.0.0/16 --gateway 10.1.0.1 testnw
+   90  docker network ls
+   91  docker inspect network testnw
+   92  ifconfig -a
+   93  docker run -d --name testapache -p 8080:80 --net testnw sandilyasd/myapache:0.0.1
+   94  docker run -d --name backend --net testnw sandilyasd/myapache:0.0.1
+   95  docker ps
+   96  docker exec -it testapache /bin/bash
+   97  docker exec -it backend /bin/bash
+   98  clear
+   99  docker stop testapache backend; docker rm testapache backend;
+  100  docker run -d --name backend sandilyasd/myapache:0.0.1
+  101  docker run -d --name frontend -p 8080:80 sandilyasd/myapache:0.0.1
+  102  docker exec -it frontrend /bin/bash
+  103  docker exec -it frontend /bin/bash
+  104  clear
+  105  docker stop frontend
+  106  docker rm frontend
+  107  docker run -d --name frontend -p 8080:80 --link backend sandilyasd/myapache:0.0.1
+  108  docker exec -it frontend /bin/bash
+  109  pip install awscli --upgrade --user
+  110  curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+  111  chmod +x ./kubectl
+  112  curl -o aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.13.7/2019-06-11/bin/linux/amd64/aws-iam-authenticator
+  113  chmod +x ./aws-iam-authenticator
+  114  mkdir -p $HOME/bin && cp ./aws-iam-authenticator $HOME/bin/aws-iam-authenticator && export PATH=$HOME/bin:$PATH
+  115  echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
+  116  aws-iam-authenticator help
+  117  curl --silent --location "https://github.com/weaveworks/eksctl/releases/download/latest_release/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+  118  sudo mv /tmp/eksctl /usr/local/bin
+  119  eksctl version
+  120  chmod +x ./kubectl
+  121  sudo mv ./kubectl /usr/local/bin/kubectl
+  122  kubectl version
+  123  eksctl create cluster --region us-east-1 --name prod --version 1.13 --nodegroup-name standard-workers --node-type t3.small --zones=us-east-1a,us-east-1b,us-east-1c --nodes 3 --nodes-min 3 --nodes-max 3 --node-ami auto --appmesh-access
+  124  kubectl get nodes
+  125  cat /home/ec2-user/.kube/config 
+  126  kubectl get <h name>
+  127  clear
+  128  kubectl create namespace test
+  129  kubectl config set-context $(kubectl config current-context) --namespace=test
+  130  kubectl config view | grep namespace:
+  131  docker images
+  132  docker tag sandilyasd/myapache:0.0.1 sandilyasd/myapache:latest
+  133  docker login
+  134  docker push sandilyasd/myapache
+  135  kubectl apply -f docker-training/deploy.yaml 
+  136  kubectl get deployments
+  137  kubectl describe test apache
+  138  kubectl describe apache
+  139  kubectl describe apache-deployment
+  140  kubectl get deployments
+  141  kubectl describe deployment apache-deployment
+  142  kubectl get pods
+  143  kubectl describe pod apache-deployment-78f99d656c-fr6zj
+  144  kubectl describe service testfrontend
+  145  clear
+  146  docker build -t sandilyasd/myapache:1.0.0 docker-training/frontend/
+  147  docker tag sandilyasd/myapache:1.0.0 sandilyasd/myapache:latest
+  148  docker push
+  149  docker push sandilyasd/myapache
+  150  kubectl apply -f docker-training/deploy.yaml 
+  151  kubectl get rs
+  152  kubectl apply -f docker-training/deploy.yaml 
+  153  kubectl get rs
+  154  kubectl apply -f docker-training/deploy.yaml 
+  155  kubectl get rs
+  156  kubectl rollout history deployment.v1beta.apps/apache-deployment
+  157  kubectl rollout history deployment.v1beta1.apps/apache-deployment
+  158  kubectl apply -f docker-training/deploy.yaml 
+  159  kubectl get rs
+  160  kubectl rollout history deployment.v1beta.apps/apache-deployment
+  161  kubectl rollout history deployment.v1beta1.apps/apache-deployment
+  162  kubectl apply -f docker-training/deploy.yaml 
+  163  kubectl get rs
+  164  kubectl rollout history deployment.v1beta1.apps/apache-deployment
+  165  kubectl rollout undo deployment.v1.apps/apache-deployment --to-revision=4
+  166  kubectl delete all --all
+  167  kubectl apply -f docker-training/twotier.yaml 
+  168  kubectl get rs
+  169  kubectl get pods
+  170  kubectl describe deployment frontend
+  171  kubectl get service
+  172  kubectl create namespace newtest
+  173  kubectl --namespace=newtest run -i --tty load-generator --image=busybox /bin/sh
+  174  eksctl delete cluster --region us-east-1 --name prod
+  175  hisory
+  176  history
+  177  history > commands.txt

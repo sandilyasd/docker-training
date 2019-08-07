@@ -1,0 +1,241 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Creating Lauchconfiguration and Autoscaing Group and Scaling Policies
+
+Parameters:
+   sgname:
+      Type: String
+      Description: Enter the elb securitygroup name
+      Default: testweblbsg
+   vpcid:
+      Type: String
+      Description: Enter the vpcid
+      Default: vpc-a222f6d8
+   elbname:
+      Type: String
+      Description: Enter the elasticloadbalancer name
+      Default: testweblb
+   firstsubnetid:
+      Type: String
+      Description: Enter the first-subnet-id to use with elb
+      Default: subnet-39962d5e
+   secondsubnetid:
+      Type: String
+      Description: Enter the second-subnet-id to use with elb 
+      Default: subnet-d697dc9c
+   clustername:
+      Type: String
+      Description: Enter the cluster name
+      Default: testcluster
+   taskdefver:
+      Type: String
+      Description: Enter the taskdefinition ARN
+   servicename:
+      Type: String
+      Description: Enter the servicename
+      Default: testservice
+Resources:
+   elbsgcreation:
+       Type: AWS::EC2::SecurityGroup 
+       Properties:
+          GroupName:
+              Ref: sgname
+          GroupDescription: ElbsecurityGroupformonitoringinstance
+          VpcId:
+              Ref: vpcid
+          SecurityGroupIngress:
+            - FromPort: 80
+              ToPort: 80
+              CidrIp: 0.0.0.0/0
+              IpProtocol: tcp
+   elbcreation:
+       Type: AWS::ElasticLoadBalancing::LoadBalancer
+       Properties:
+          LoadBalancerName:   
+              Ref: elbname
+          SecurityGroups:
+            - Ref: elbsgcreation
+          Subnets:
+            - Ref: firstsubnetid
+            - Ref: secondsubnetid
+          Listeners:
+            - LoadBalancerPort: 80
+              Protocol: HTTP
+              InstancePort: 10001  
+          HealthCheck:
+            HealthyThreshold: 2
+            Target: HTTP:10001/status.html
+            Interval: 30
+            UnhealthyThreshold: 2
+            Timeout: 5
+   ecsserviceRole:
+     Type: AWS::IAM::Role
+     Properties:
+       AssumeRolePolicyDocument:
+         Statement:
+           - Effect: Allow
+             Principal:
+               Service:
+                 - ecs.amazonaws.com
+             Action:
+               - sts:AssumeRole
+       Path: "/"
+       Policies:
+         - PolicyName: ECSServiceRole
+           PolicyDocument:
+             Statement:
+               - Effect: Allow
+                 Action:
+                   - ec2:AuthorizeSecurityGroupIngress
+                   - ec2:Describe*
+                   - elasticloadbalancing:DeregisterInstancesFromLoadBalancer
+                   - elasticloadbalancing:DeregisterTargets
+                   - elasticloadbalancing:Describe*
+                   - elasticloadbalancing:RegisterInstancesWithLoadBalancer
+                   - elasticloadbalancing:RegisterTargets
+                 Resource: "*"
+   ecsservice:
+     Type: "AWS::ECS::Service"
+     Properties: 
+       Cluster: 
+         Ref: clustername
+       DeploymentConfiguration:
+         MaximumPercent: 200
+         MinimumHealthyPercent: 50
+       DesiredCount: 2
+       HealthCheckGracePeriodSeconds: 60
+       LaunchType: EC2
+       LoadBalancers:
+         - ContainerName: frontend
+           ContainerPort: 80
+           LoadBalancerName: 
+             Ref: elbcreation
+       PlacementStrategies:
+         - Type: spread
+           Field: host
+       Role:
+         Fn::GetAtt:
+         - ecsserviceRole
+         - Arn
+       ServiceName: 
+         Ref: servicename
+       TaskDefinition: 
+         Ref: taskdefver
+     
+   ApplicationAutoScalingRole:
+     Type: AWS::IAM::Role
+     Properties:
+       AssumeRolePolicyDocument:
+         Statement:
+           - Effect: Allow
+             Principal:
+               Service:
+                 - application-autoscaling.amazonaws.com
+             Action:
+               - sts:AssumeRole
+       Path: "/"
+       Policies:
+         - PolicyName: ECSBlogScalingRole
+           PolicyDocument:
+             Statement:
+               - Effect: Allow
+                 Action:
+                   - ecs:UpdateService
+                   - ecs:DescribeServices
+                   - application-autoscaling:*
+                   - cloudwatch:DescribeAlarms
+                   - cloudwatch:GetMetricStatistics
+                 Resource: "*"
+   AutoScalingCPUHighAlarm:
+     Type: AWS::CloudWatch::Alarm
+     Properties:
+       AlarmDescription: Containers CPU Utilization High
+       MetricName: CPUUtilization
+       Namespace: AWS/ECS
+       Statistic: Average
+       Period: '60'
+       EvaluationPeriods: '1'
+       Threshold: '70'
+       AlarmActions:
+       - Ref: AutoScalingHighPolicy
+       Dimensions:
+       - Name: ServiceName
+         Value: 
+           Ref: servicename
+       - Name: ClusterName
+         Value: 
+           Ref: clustername
+       ComparisonOperator: GreaterThanOrEqualToThreshold
+   AutoScalingCPULowAlarm:
+     Type: AWS::CloudWatch::Alarm
+     Properties:
+       AlarmDescription: Containers CPU Utilization Low
+       MetricName: CPUUtilization
+       Namespace: AWS/ECS
+       Statistic: Average
+       Period: '60'
+       EvaluationPeriods: '1'
+       Threshold: '30'
+       AlarmActions:
+       - Ref: AutoScalingLowPolicy
+       Dimensions:
+       - Name: ServiceName
+         Value:
+           Ref: servicename
+       - Name: ClusterName
+         Value:
+           Ref: clustername
+       ComparisonOperator: LessThanOrEqualToThreshold
+
+   AutoScalingTarget:
+     Type: AWS::ApplicationAutoScaling::ScalableTarget
+     Properties:
+       MaxCapacity: 4
+       MinCapacity: 2
+       ResourceId: !Join
+         - /
+         - - service
+           - !Ref clustername
+           - !GetAtt ecsservice.Name
+       RoleARN:
+         Fn::GetAtt:
+         - ApplicationAutoScalingRole
+         - Arn
+       ScalableDimension: ecs:service:DesiredCount
+       ServiceNamespace: ecs
+   AutoScalingHighPolicy:
+     Type: AWS::ApplicationAutoScaling::ScalingPolicy
+     Properties:
+       PolicyName: autoscalinghighpolicy
+       PolicyType: StepScaling
+       ScalingTargetId:
+         Ref: AutoScalingTarget
+       ScalableDimension: ecs:service:DesiredCount
+       ServiceNamespace: ecs
+       StepScalingPolicyConfiguration:
+         AdjustmentType: ChangeInCapacity
+         Cooldown: 60
+         MetricAggregationType: Average
+         StepAdjustments:
+         - MetricIntervalLowerBound: 0
+           ScalingAdjustment: 2
+   AutoScalingLowPolicy:
+     Type: AWS::ApplicationAutoScaling::ScalingPolicy
+     Properties:
+       PolicyName: autoscalinglowpolicy
+       PolicyType: StepScaling
+       ScalingTargetId:
+         Ref: AutoScalingTarget
+       ScalableDimension: ecs:service:DesiredCount
+       ServiceNamespace: ecs
+       StepScalingPolicyConfiguration:
+         AdjustmentType: ChangeInCapacity
+         Cooldown: 60
+         MetricAggregationType: Average
+         StepAdjustments:
+         - MetricIntervalLowerBound: 0
+           ScalingAdjustment: -2
+Outputs:
+  LoadBalancerDNSName:
+    Description: The DNSName of the backup load balancer
+    Value: !GetAtt elbcreation.DNSName
